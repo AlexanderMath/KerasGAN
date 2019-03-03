@@ -1,3 +1,7 @@
+import sys
+sys.path.insert(0, '../power_iteration/')
+# for fast computation of largest eigenvalue
+from power_iteration import power_iteration 
 import os
 import keras
 import numpy as np
@@ -7,7 +11,6 @@ from keras.layers import Dense, Input, Conv2D, Reshape, Flatten, BatchNormalizat
 from keras.optimizers import Adam
 import matplotlib.pyplot as plt 
 import tensorflow as tf
-import sys
 
 """
 	Takes arguments
@@ -146,6 +149,9 @@ def train(loss, clss):
 	# Save a list of fakes and save in end. 
 	fake_history = [] 
 
+	# Init vectors for power iteration should initially be None 
+	v1, v2, v3 = None, None, None
+
 	for i in range(iterations):
 		print("\r--- [%i / %i] ---"%(i, iterations), end="")
 		
@@ -160,11 +166,9 @@ def train(loss, clss):
 
 		if loss == "wasserstein": 
 			# Spectral normalization: 
-			# It is not obvious how we should tread convolutions are matrices, for now I 
-			# use the approach outlined in the original article.  Maybe if we analyze it using the convolution theorem 
-			# we can do it more fine grained and show that this works better? 
-			# TODO: The code computes expensive SVD each iteration instead of using power iteration
-			# initialized by eigenvector of previous iteration. 
+			# It is not obvious how we should treat convolutions as matrices, for now I 
+			# use the approach outlined in the original article.  Maybe if we analyze it using 
+			# the convolution theorem we can do it more fine grained and show that this works better? 
 			W1 = D.get_weights()[0] # 3 x 3 x 1 x 64
 			W2 = D.get_weights()[6] # 3 x 3 x 64 x 128
 			W3 = D.get_weights()[12] # FC ; vector product
@@ -172,13 +176,18 @@ def train(loss, clss):
 			W1 = W1.reshape(64, 	3*3*1) # d_out = 64, 	w=h=3, d_in = 1
 			W2 = W2.reshape(128, 3	*3*64) # d_out = 128, 	w=h=3, d_in = 64
 
-			sigma1 = np.linalg.svd(W1, full_matrices=False, compute_uv=False)
-			sigma2 = np.linalg.svd(W2, full_matrices=False, compute_uv=False)
-			sigma3 = np.linalg.svd(W3, full_matrices=False, compute_uv=False)
-			
-			W1 = W1 / sigma1.max()
-			W2 = W2 / sigma2.max()
-			W3 = W3 / sigma3.max()
+			# slow naive method, computes SVD each iteration. 
+			#W1 = W1 / np.linalg.svd(W1, full_matrices=False, compute_uv=False).max()
+			#W2 = W2 / np.linalg.svd(W2, full_matrices=False, compute_uv=False).max()
+			#W3 = W3 / np.linalg.svd(W3, full_matrices=False, compute_uv=False).max()
+
+			# computes just largest eigenvalue and reuses largest eigenvector as initialization. 
+			s1, v1 = power_iteration(W1, num_simulations=3, init_vect=v1, return_vector=True)
+			s2, v2 = power_iteration(W2, num_simulations=3, init_vect=v2, return_vector=True)
+			s3, v3 = power_iteration(W3, num_simulations=3, init_vect=v3, return_vector=True)
+			W1 = W1 / s1
+			W2 = W2 / s2
+			W3 = W3 / s3
 
 			weights = D.get_weights()
 			weights[0] = W1.reshape(3, 3, 1, 	64)

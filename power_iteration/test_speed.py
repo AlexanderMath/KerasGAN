@@ -63,6 +63,6 @@ for i in range(1, iterations, 1):
 	for j in range(2): ax[j].legend()
 
 	plt.tight_layout()
-	plt.savefig("test_speed.pdf")
 	plt.pause(.1)
 
+plt.savefig("test_speed.pdf")
