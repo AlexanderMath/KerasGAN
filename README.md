@@ -8,7 +8,11 @@
 ## CIFAR-10
 
 
-## GUITAR-64
+## GUITAR
+
+<img src="guitar/gif_32.gif" />
+
+<img src="guitar/gif_64.gif" />
 
 
 ...
